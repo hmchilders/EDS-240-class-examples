@@ -12,6 +12,7 @@ editor_options:
 ```{r}
 library(tidyverse)
 library(palmerpenguins)
+
 ```
 
 ## TidyData
@@ -38,7 +39,7 @@ temp_data_long <- temp_data_wide |>
                values_to = "temp_c")
 ```
 
-# Example #1: 
+## Example #1:
 
 Exploring the relationship between penguin **bill length** and **bill depth**
 
@@ -51,7 +52,7 @@ ggplot(data = penguins,
   geom_point()
 ```
 
-If we\'d like to represent species using another aesthetic (e.g. color, shape, size), we need to modify our plot\'s aesthetic (i.e. inside `aes()`) -- **any time we want to modify the appearance of our plotted data based on a variable in our dataset, we do so within `aes()`.** This process is known as **scaling**. A legend will automatically be added to indicate which values (in this case, colors) correspond to which level of our variable (in this case, species):
+If we'd like to represent species using another aesthetic (e.g. color, shape, size), we need to modify our plot's aesthetic (i.e. inside `aes()`) -- **any time we want to modify the appearance of our plotted data based on a variable in our dataset, we do so within `aes()`.** This process is known as **scaling**. A legend will automatically be added to indicate which values (in this case, colors) correspond to which level of our variable (in this case, species):
 
 ```{r}
 #Initialize a plot object
@@ -132,7 +133,7 @@ ggplot(data = na.omit(penguins),
   scale_color_gradient(low = "#132B43", high = "#F7DD4C")
 ```
 
-# Example #2 :
+## Example #2 :
 
 explore **penguin species counts**
 
@@ -153,7 +154,7 @@ ggplot(penguin_summary, aes(x = species, y = n)) +
   geom_bar(stat = "identity")
 ```
 
-Now let\'s say we\'d like to display the same bar chart with y-axis values as proportions, rather than counts. We can override the default mapping from transformed variables to aesthetics by doing the following:
+Now let's say we'd like to display the same bar chart with y-axis values as proportions, rather than counts. We can override the default mapping from transformed variables to aesthetics by doing the following:
 
 ```{r}
 library(palmerpenguins)
@@ -180,7 +181,7 @@ ggplot(penguins) +
 
 #### Position Adjustments
 
-Position adjustments apply minor tweaks to the position of elements to resolve overlapping geoms. For example, let\'s say we would like to visualize penguin counts by species (bar height) and by island (color) using our bar chart from earlier. We could add the `fill` aesthetic:
+Position adjustments apply minor tweaks to the position of elements to resolve overlapping geoms. For example, let's say we would like to visualize penguin counts by species (bar height) and by island (color) using our bar chart from earlier. We could add the `fill` aesthetic:
 
 ```{r}
 ggplot(penguins, aes(x = species, fill = island)) +
@@ -199,7 +200,7 @@ ggplot(penguins, aes(x = species, fill = island)) +
   geom_bar(position = "dodge")
 ```
 
-Instead of `position = "X"`, you can use [functions](https://ggplot2.tidyverse.org/reference/#position-adjustment) to update and further adjust your geom\'s positions. Here, we\'ll use `position_dodge2()` to also ensure the widths of each of our bars are equal:
+Instead of `position = "X"`, you can use [functions](https://ggplot2.tidyverse.org/reference/#position-adjustment) to update and further adjust your geom's positions. Here, we'll use `position_dodge2()` to also ensure the widths of each of our bars are equal:
 
 ```{r}
 ggplot(penguins, aes(x = species, fill = island)) +
@@ -258,18 +259,18 @@ ggplot(penguins, aes(x = species, fill = species)) +
   )
 ```
 
-# Example #3:
+## Example #3:
 
-we\'ll explore **penguin flipper lengths**
+we'll explore **penguin flipper lengths**
 
-We\'ll again start by initializing our plot object with data, mapping our aesthetics, and defining a geometric object. Note that the default statistical transformation for `geom_histogram()` is `stat = "bin"`:
+We'll again start by initializing our plot object with data, mapping our aesthetics, and defining a geometric object. Note that the default statistical transformation for `geom_histogram()` is `stat = "bin"`:
 
 ```{r}
 ggplot(penguins, aes(x = flipper_length_mm)) + 
   geom_histogram()
 ```
 
-Just like in our scatterplot (Plot #1), we\'ll modify our plot\'s aesthetics (i.e. inside `aes()`) to color our histrogram bins according to the species variable. Unlike our scatterplot (which uses the `color` argument), we\'ll use the `fill` argument to *fill* the bars with color (rather than *outline* them with color). We\'ll also manually define our fill scale:
+Just like in our scatterplot (Plot #1), we'll modify our plot's aesthetics (i.e. inside `aes()`) to color our histrogram bins according to the species variable. Unlike our scatterplot (which uses the `color` argument), we'll use the `fill` argument to *fill* the bars with color (rather than *outline* them with color). We'll also manually define our fill scale:
 
 ```{r}
 ggplot(penguins, aes(x = flipper_length_mm, fill = species)) + 
@@ -277,10 +278,125 @@ ggplot(penguins, aes(x = flipper_length_mm, fill = species)) +
   scale_fill_manual(values = c("#FF8302", "#C35CCA", "#067575"))
 ```
 
-Let\'s update the position of our binned bars from `"stack"` to `"identity"` and also increase the transparency (using `alpha`) so that we can see overlapping bars:
+Let's update the position of our binned bars from `"stack"` to `"identity"` and also increase the transparency (using `alpha`) so that we can see overlapping bars:
 
 ```{r}
 ggplot(penguins, aes(x = flipper_length_mm, fill = species)) + 
   geom_histogram(position = "identity", alpha = 0.5) +
   scale_fill_manual(values = c("#FF8302", "#C35CCA", "#067575"))
+```
+
+# Week 1 Discussion Section
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                    setup                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#..........................load packages.........................
+library(tidyverse)
+library(janitor)
+library(usdata)
+
+#......................import fracking data......................
+fracking <- read_csv(here::here("data", "fracking.csv"))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                        clean/wrangle fracking data                       ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fracking_clean <- fracking |> 
+  
+  # clean column names ----
+  janitor::clean_names() |> #turn column names into snakecase "_". Better readability of column headers
+  
+  # clean up dates ----
+  mutate(job_start_date = str_remove(job_start_date, " AM")) |> # remove 'AM' from string
+  mutate(datetime_start = mdy_hms(job_start_date)) |> # convert from string to date and save to a new col
+  mutate(year = year(datetime_start)) |> # create a new col called 'year' selecting the col from date
+
+  # select relevant cols ----
+  select(datetime_start, year, state_name, county_name, well_name, total_base_water_volume) |> # Selecting only the necessary columns
+  
+  # filter out non-state names ----
+  filter(!state_name %in% c("Beaver", "Beckham", "Harper", "Hemphill", "Midland", "Red River", "Roosevelt", "Rusk", "State", "WARD")) |> #Remove non-states from the state column
+  
+  # rename state_name to something shorter for typing out when using case_when (not necessary) ----
+  rename(sn = state_name) |> 
+  
+  # make all words title case ----
+  mutate(sn = str_to_title(sn)) |> 
+  
+  # fix misspelled state names ----
+  mutate(sn = case_when(
+    sn == "Colordao" ~ "Colorado",
+    sn == "Loiusiana" ~ "Louisiana",
+    sn == "Louisianna" ~ "Louisiana",
+    sn == "Lousiana" ~ "Louisiana",
+    sn == "New Mexcio" ~ "New Mexico",
+    sn == "Norh Dakota" ~ "North Dakota",
+    sn == "Norht Dakota" ~ "North Dakota",
+    sn == "North  Dakota" ~ "North Dakota",
+    sn == "North Dakata" ~ "North Dakota",
+    sn == "North Dakotta" ~ "North Dakota",
+    sn == "Noth Dakota" ~ "North Dakota",
+    sn == "Pennslvania" ~ "Pennsylvania",
+    sn == "Pennsylavania" ~ "Pennsylvania",
+    sn == "Pennsylvanya" ~ "Pennsylvania",
+    sn == "Penssylvania" ~ "Pennsylvania",
+    sn == "Texasa" ~ "Texas",
+    sn == "Texs" ~ "Texas", 
+    sn == "West Viginia" ~ "West Virginia",
+    sn == "Wyominng" ~ "Wyoming", 
+    TRUE ~ sn # copy over rest of state names from as-is
+  )) |> 
+  
+  # remove rows that have a '?' mark ----
+  filter(!str_detect(string = sn, pattern = "\\?")) |> # `?` is a special chr; escape with `\\` prefix
+  
+  # make all uppercase (so that we can covert abbreviation to state names) ----
+  mutate(sn = str_to_upper(sn)) |> 
+  
+  # mutate abbreviations to full state names ----
+  mutate(sn = ifelse(test = str_length(sn) == 2, # if string in 'sn' col is 2 chrs long
+                     yes = usdata::abbr2state(sn), # replace abbreviation with full state name 
+                     no = sn)) |> # if string in 'sn' col is not 2 chrs long, keep state name as-is
+  
+  # make all words title case again ----
+  mutate(sn = str_to_title(sn)) |> 
+  
+  # create a column of just state abbreviations ----
+  mutate(state_abb = usdata::state2abbr(sn)) |> 
+  
+  # rename 'sn' to 'state_name' again for clarity ----
+  rename(state_name = sn, total_base_water_volume_gal = total_base_water_volume) |> 
+  
+  # move 'state_abb' col after state_name col ----
+  relocate(state_abb, .after = state_name) |> 
+  
+  # convert 'state_name' & 'state_abb' from string to factor ----
+  mutate(state_name = as.factor(state_name),
+         state_abb = as.factor(state_abb)) |> 
+  
+  # remove obs that don't have a measurement for 'total_base_water_volume' (NA) ----
+  drop_na(total_base_water_volume_gal)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##          some exploratory data viz + a few plot mods for practice        ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fracking_clean |> 
+  filter(state_name %in% c("Texas", "Colorado", "North Dakota")) |> 
+  filter(year == 2015) |> 
+  group_by(state_name) |> # pipe directly into ggplot
+  ggplot(aes(x = fct_rev(fct_infreq(state_name)), y = total_base_water_volume_gal)) + # need to reverse fct order for coord_flip() (plots lowest freq at top by default)
+  geom_jitter(width = 0.3, alpha = 0.5, color = "gray15") +
+  geom_violin(color = "red4", alpha = 0.3) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(y = "Total base water volumn (gal)") +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    axis.title.y = element_blank()
+    ) 
 ```
