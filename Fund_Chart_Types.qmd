@@ -4,7 +4,7 @@ format: html
 editor: visual
 ---
 
-## Title
+# Fundamental Chart Types
 
 ### Pre-Class Prep
 
@@ -18,4 +18,265 @@ install.packages("gghighlight") # {ggplot2} extension for highlighting geoms
 install.packages("ggbeeswarm") # {ggplot2} extension for creating categorical scatter (violin point) plots
 install.packages("see") # {ggplot2} extension for model visualization (we'll be using it for it's geom, geom_violindot())
 install.packages("scales") # provides the internal scaling infrastructure used by ggplot2, and gives you tools to override the default breaks, labels, transformations and palettes (installed automatically with {ggplot2} or {tidyverse})
+```
+
+```{r}
+#. Load Packages --------
+library(tidyverse)
+library(chron)
+library(naniar)
+```
+
+## Kelp and Penguins Data - Histograms, Density Plots, Boxplots, Violin Plots, Ridegplots, Jitter overlays, etc.
+
+```{r}
+# Import the data -------
+
+mko <- read_csv("https://portal.edirepository.org/nis/dataviewer?packageid=knb-lter-sbc.2007.17&entityid=02629ecc08a536972dec021f662428aa")
+```
+
+```{r}
+mko_clean <- mko %>% 
+  select(year, month, day, decimal_time, Temp_bot) %>% 
+  unite(date, year, month, day, sep = "-", remove = FALSE) %>% 
+  mutate(time = times(decimal_time)) %>% 
+  unite(date_time, date, time, sep = " ") %>% 
+  mutate(date_time = as.POSIXct(date_time, "%Y-%m-%d %H:%M:%S", tz = "GMT"),
+         year = as.factor(year),
+         month = as.factor(month),
+         day = as.numeric(day)) %>% 
+  mutate(month_name = as.factor(month.name[month])) %>% 
+  naniar::replace_with_na(replace = list(Temp_bot = 9999))
+# str(mko_clean)
+  
+
+```
+
+```{r}
+## Make a histogram -----
+mko_clean %>% 
+  mutate(month_name = factor(month_name, levels = month.name)) %>% 
+  ggplot(aes(x = Temp_bot, fill = month_name))+
+  geom_histogram(pos = "identity", alpha = 0.5)
+
+## Small multiples approach
+mko_clean %>% 
+  mutate(month_name = factor(month_name, levels = month.name)) %>% 
+  ggplot(aes(x = Temp_bot))+
+  geom_histogram(pos = "identity")+
+  facet_wrap(~month_name)
+
+#Fewer groups approach
+mko_clean %>% 
+  mutate(month_name = factor(month_name, levels = month.name)) %>% 
+  filter(month_name %in% c("April", "June", "October")) %>% 
+  ggplot(aes(x = Temp_bot, fill = month_name))+
+  geom_histogram(pos = "identity", alpha = 0.5 )+
+  scale_fill_manual(values = c("#2C5374", "#ADD8E6", "#8B3A3A"))
+```
+
+```{r}
+#Make a density function
+mko_clean |> 
+  mutate(month_name = factor(x = month_name, levels = month.name)) |> 
+  ggplot(aes(x = Temp_bot, fill = month_name)) +
+  geom_density(alpha = 0.5)
+```
+
+```{r}
+mko_clean |> 
+  filter(month_name %in% c("April", "June", "October")) |> 
+  ggplot(aes(x = Temp_bot, fill = month_name)) +
+  geom_density(alpha = 0.5, adjust = 5) + 
+  scale_fill_manual(values = c("#2C5374", "#ADD8E6", "#8B3A3A"))
+```
+
+```{r}
+dummy_data <- data.frame(value = c(rnorm(n = 100, mean = 5),
+                                   rnorm(n = 200, mean = 10)),
+                         group = rep(c("A", "B"),
+                                     times = c(100, 200)))
+```
+
+```{r}
+set.seed(456)
+# Histograms vs Density Plots
+hist <- ggplot(dummy_data, aes(x = value, fill = group)) +
+  geom_histogram(position = "identity", alpha = 0.7) +
+  geom_rug(aes(color = group), alpha = 0.75)
+
+dense<- ggplot(dummy_data, aes(x = value, fill = group)) +
+  geom_density(alpha = 0.7) +
+  geom_rug(aes(color = group), alpha = 0.75)
+
+hist
+dense
+```
+
+```{r}
+ggplot(mko_clean, aes(x = Temp_bot, y = month_name,
+                      fill = after_stat(x)))+
+  ggridges::geom_density_ridges_gradient(rel_min_height = 0.01, scale = 3)+
+  scale_y_discrete(limits = rev(month.name))+
+  scale_fill_gradientn(colors = c("#2C5374","#849BB4", "#D9E7EC", "#EF8080", "#8B3A3A"))
+  
+```
+
+```{r}
+ggplot(mko_clean, aes(x = month_name, y = Temp_bot, fill = month_name)) +
+  geom_boxplot() +
+  scale_x_discrete(limits = rev(month.name)) +
+  coord_flip()+
+  gghighlight::gghighlight(month_name == "October")+
+  theme(
+    legend.position = "none"
+  )
+```
+
+```{r}
+#jitter and dodge
+library(palmerpenguins)
+
+penguins %>% 
+  mutate(year = as.factor(year)) %>% 
+  ggplot(aes(x = species, y = body_mass_g, color = year))+
+  geom_boxplot()+
+  geom_point(alpha = 0.5, position = position_jitterdodge(jitter.width = 0.2))+
+  coord_flip()
+```
+
+```{r}
+## Violin Plot
+ggplot(mko_clean, aes(x = month_name, y = Temp_bot)) +
+  geom_violin() +
+  scale_x_discrete(limits = rev(month.name)) +
+  coord_flip()
+
+## Violin with box Plot
+ggplot(mko_clean, aes(x = month_name, y = Temp_bot)) +
+  geom_violin() +
+  geom_boxplot(color = "grey", alpha = 0.5, width = 0.1, outlier.color = "black")+
+  scale_x_discrete(limits = rev(month.name)) +
+  coord_flip()
+```
+
+```{r}
+#Half and Half
+ggplot(penguins, aes(x = species, y = bill_length_mm, fill = species)) +
+  see::geom_violindot(size_dots = 9, alpha = 0.7) +
+  theme(legend.position = "none")
+```
+
+## Lyme Disease - Line and Area Charts
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                    setup                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#.........................load libraries.........................
+library(tidycensus)
+library(tidyverse)
+library(janitor)
+library(gghighlight)
+
+#.........................source API key.........................
+source(here::here("KEYS.R"))
+census_api_key(censusKEY)
+
+#..........................import data...........................
+lyme <- read_csv(here::here("data", "LD-Case-Counts-by-County-01-20.csv"))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                          wrangle lyme disease data                       ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#............wide to long (plus some other wrangling)............
+lyme_clean <- lyme |> 
+  
+  # make col names snake_case ----
+  janitor::clean_names() |> 
+  
+  # rename columns ----
+  rename(city = ctyname, state = stname, status = ststatus) |> 
+  
+  # wide to long (tidy) years
+  pivot_longer(cols = 6:25, names_to = "city_year", values_to = "reported_cases") |> 
+  
+  # remove "cases" from the year & coerce year from chr to factor ----
+  mutate(year = str_remove(city_year, pattern = "cases"),
+         year = as.factor(year)) |> 
+  
+  # select necessary cols ----
+  select(year, city, state, status, reported_cases)
+
+#................calculate total cases per state.................
+lyme_by_state <- lyme_clean |> 
+  group_by(year, state) |> 
+  summarize(total_cases = sum(reported_cases)) 
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      request / wrangle population data                   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#...................get pop estimates by state...................
+us_state_pop <- get_estimates(geography = "state", 
+                              product = "population",
+                              state = NULL, 
+                              year = 2019) |> 
+  filter(variable == "POP") |> 
+  select(state = NAME, population = value) 
+
+#........................write data to csv.......................
+# optional, but recommended in case you want to work offline, the API is down, etc. (you can then read in your saved data file rather than run the above code)
+# write_csv(us_state_pop, file = here::here("week3", "data", "us_state_pop.csv"))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            join lyme & pop dfs                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+lyme_pop <- left_join(lyme_by_state, us_state_pop) |> 
+  
+  # add col with num of 100k people per state ----
+  mutate(pop100k = population/100000) |> 
+  
+  # calculate num cases per 100k people (common way of reporting disease incidence) ----
+  mutate(cases_per100k = total_cases/pop100k) 
+```
+
+```{r}
+# Line Graph
+lyme_pop |> 
+  filter(year %in% c(2010:2020)) |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state)) + 
+  geom_line()
+
+```
+
+```{r}
+## Line and Point 
+lyme_pop |> 
+  filter(year %in% c(2010:2020)) |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state)) + 
+  geom_line(aes(color = state))+
+  geom_point(aes(color = state))+
+  theme(
+    legend.position = "none"
+  )
+```
+
+```{r}
+lyme_pop |> 
+  filter(year %in% c(2010:2020)) |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state)) +
+  geom_line() +
+  gghighlight::gghighlight(state == "Massachusetts") 
+```
+
+```{r}
+lyme_pop |> 
+  filter(year %in% c(2010:2020)) |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state, color = state)) +
+  geom_line() +
+  gghighlight::gghighlight(max(cases_per100k) > 100) 
 ```
