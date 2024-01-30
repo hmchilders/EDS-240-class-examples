@@ -9,15 +9,15 @@ editor: visual
 ### Pre-Class Prep
 
 ```{r}
-install.packages("chron") # for working with dates / times
-install.packages("naniar") # tools for exploring & handing missing data
-install.packages("tidytuesdayR") # used to download TidyTuesday data
-install.packages("tidycensus") # an R package that allows users to interface with a select number of the US Census Bureau’s data APIs and return tidyverse-ready data frames
-install.packages("ggridges") # {ggplot2} extension for creating ridgeline plots
-install.packages("gghighlight") # {ggplot2} extension for highlighting geoms
-install.packages("ggbeeswarm") # {ggplot2} extension for creating categorical scatter (violin point) plots
-install.packages("see") # {ggplot2} extension for model visualization (we'll be using it for it's geom, geom_violindot())
-install.packages("scales") # provides the internal scaling infrastructure used by ggplot2, and gives you tools to override the default breaks, labels, transformations and palettes (installed automatically with {ggplot2} or {tidyverse})
+#install.packages("chron") # for working with dates / times
+#install.packages("naniar") # tools for exploring & handing missing data
+#install.packages("tidytuesdayR") # used to download TidyTuesday data
+#install.packages("tidycensus") # an R package that allows users to interface with a select number of the US Census Bureau’s data APIs and return tidyverse-ready data frames
+#install.packages("ggridges") # {ggplot2} extension for creating ridgeline plots
+#install.packages("gghighlight") # {ggplot2} extension for highlighting geoms
+#install.packages("ggbeeswarm") # {ggplot2} extension for creating categorical scatter (violin point) plots
+#install.packages("see") # {ggplot2} extension for model visualization (we'll be using it for it's geom, geom_violindot())
+#install.packages("scales") # provides the internal scaling infrastructure used by ggplot2, and gives you tools to override the default breaks, labels, transformations and palettes (installed automatically with {ggplot2} or {tidyverse})
 ```
 
 ```{r}
@@ -279,4 +279,65 @@ lyme_pop |>
   ggplot(aes(x = year, y = cases_per100k, group = state, color = state)) +
   geom_line() +
   gghighlight::gghighlight(max(cases_per100k) > 100) 
+
+```
+
+#### Aspect Ratio
+
+```{r}
+lyme_pop |> 
+  filter(state == "Vermont") |> 
+  filter(year %in% c(2010:2020)) |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state)) +
+  geom_line() + 
+  coord_fixed(ratio = 1/50)
+```
+
+### Area Charts
+
+```{r}
+#Basic Area Plot
+lyme_pop |> 
+  filter(year %in% c(2010:2020)) |> 
+  filter(state == "New Jersey") |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state)) +
+  geom_area() 
+#Change the fill color
+lyme_pop |> 
+  filter(year %in% c(2010:2020)) |> 
+  filter(state == "New Jersey") |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state, fill = state)) +
+  geom_area() +
+  scale_fill_manual(values = c("#047C90")) +
+  theme(legend.position = "none")
+#Edit the edges / Expand Panel Margins
+lyme_pop |> 
+  filter(year %in% c(2010:2020)) |> 
+  filter(state == "New Jersey") |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state, fill = state)) +
+  geom_area() +
+  scale_fill_manual(values = c("#047C90")) +
+  scale_x_discrete(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme(legend.position = "none")
+```
+
+#### Stacked Area Chart
+
+```{r}
+#Standard
+lyme_pop |> 
+  filter(year %in% c(2010:2020)) |> 
+  filter(state %in% c("Maine", "Rhode Island", "New Hampshire", "Vermont")) |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state, fill = state)) +
+  geom_area()
+
+#Proportions
+lyme_pop |> 
+  filter(year %in% c(2010:2020)) |> 
+  filter(state %in% c("Maine", "Rhode Island", "New Hampshire", "Vermont")) |> 
+  ggplot(aes(x = year, y = cases_per100k, group = state, fill = state)) +
+  geom_area(position = "fill") +
+  scale_y_continuous(labels = scales::label_percent(scale = 100))
+
 ```
