@@ -1,0 +1,319 @@
+---
+title: "Lecture 5/6"
+format: html
+editor: visual
+---
+
+# LECTURE 5
+
+## Read in Libraries
+
+```{r}
+install.packages("monochromeR") # a package for creating monochrome color palettes and easily converting rgba values to hex codes (and also some other useful functions)
+install.packages("showtext") # for using fonts more easily in R graphs
+install.packages("ggtext") # improved text rendering support for ggplot2
+install.packages("ggrepel") # ggplot2 extension to repel overlapping labels
+install.packages("googlesheets4") # provides an R interface to Google Sheets via the Sheets API v4
+```
+
+## Building a Cloropleth Map
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                    setup                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#..........................load packages.........................
+library(tidyverse)
+library(tigris)
+
+#.........................get shape data.........................
+county_geo <- tigris::counties(class = "sf", cb = TRUE) |> # cb = TRUE to use cartographic boundary files
+  
+  # shift US to fit AK, HI, PR (we'll be filtering these out though) and transform CRS to USA Contiguous Albers Equal Area Conic (ESRI:102003) ----
+  shift_geometry()
+
+#....................import precipitation data...................
+precip_data <- read_csv(here::here("data", "county-jan19-dec23-precip.csv"), skip = 4)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                               data wrangling                             ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ wrangle geometries  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+county_geo_wrangled <- county_geo |>
+  
+  # clean up col names ----
+  janitor::clean_names() |>
+  
+  # rename county & state cols ----
+  rename(county = namelsad, state = state_name) |>
+  
+  # remove states / territories that we don't have precip data for ----
+  filter(!state %in% c("Alaska", "Hawaii", "District of Columbia",
+                       "United States Virgin Islands", "Puerto Rico", "American Samoa",
+                       "Commonwealth of the Northern Mariana Islands", "Guam")) |>
+  
+  # capitalize "city" (VA) ----
+  mutate(county = str_replace(string = county, pattern = " city", replacement = " City"))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ wrangle precipitation data  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+precip_wrangled <- precip_data |>
+  
+  # clean up col names ----
+  janitor::clean_names() |>
+  
+  # rename county col ----
+  rename(county = name) |>
+  
+  # filter out DC ----
+  filter(!county %in% c("Washington, D.C.")) |>
+  
+  # update name to match that in county_geo df ----
+  mutate(county = str_replace(string = county, pattern = "Dona Ana County", replacement = "Doña Ana County")) |>
+  
+  # coerce precip & 20th centruy avg from chr to numeric ----
+  mutate(value = as.numeric(value),
+         x1901_2000_mean = as.numeric(x1901_2000_mean)) |>
+  
+  # calculate % change ----
+  mutate(perc_change = ((value - x1901_2000_mean)/x1901_2000_mean)*100) |>
+  
+  # select, rename, reorder cols ----
+  select(id, state, county, mean_1901_2000 = x1901_2000_mean, precip = value, perc_change, anomaly_1901_2000_base_period)
+
+##~~~~~~~~~~~~~~~~~~
+##  ~ join dfs  ----
+##~~~~~~~~~~~~~~~~~~
+
+# join dfs (be sure to join precip TO sf object, not the other way around) -------
+joined_precip_geom <- full_join(county_geo_wrangled, precip_wrangled) 
+```
+
+```{r}
+base_map <- ggplot(joined_precip_geom) +
+  geom_sf(aes(fill = perc_change), linewidth = 0.1) +
+  labs(title = "5-year precipitation compared with the 20th century average",
+       subtitle = "January 2019 - December 2023",
+       caption = "Source: National Centers for Environmental Information") +
+  theme_void() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    plot.caption = element_text(face = "italic",
+                                margin = margin(t = 2, r = 0.5, b = 0, l = 0, "lines"))
+  )
+
+base_map
+```
+
+```{r}
+my_brew_palette11 <- RColorBrewer::brewer.pal(n = 11, name = 'BrBG')
+my_brew_palette11
+
+base_map + 
+  scale_fill_gradientn(colors = my_brew_palette11,
+                       labels = scales::label_percent(scale = 1),
+                       breaks = scales::breaks_width(width = 10),
+                       values = scales::rescale(x = c(
+                         min(na.omit(joined_precip_geom)$perc_change),
+                         0,
+                         max(na.omit(joined_precip_geom)$perc_change)))) +
+  guides(fill = guide_colorbar(barwidth = 15, barheight = 0.75))
+```
+
+## Class Map
+
+```{r}
+my_brew_palette10 <- RColorBrewer::brewer.pal(n = 10, name = 'BrBG')
+my_brew_palette10
+
+base_map + 
+  scale_fill_stepsn(colors = my_brew_palette10,
+                    labels = scales::label_percent(scale = 1),
+                    values = scales::rescale(x = c(
+                         min(na.omit(joined_precip_geom)$perc_change),
+                         0,
+                         max(na.omit(joined_precip_geom)$perc_change))), 
+                    breaks = scales::breaks_width(width = 10)) +
+  guides(fill = guide_colorsteps(barwidth = 25, barheight = 0.75))
+```
+
+# LECTURE 6
+
+```{r}
+library(palmerpenguins)
+library(tidyverse)
+
+ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point() + 
+  labs(title = "This title is serif font",
+       subtitle = "This subtitle is mono font",
+       x = "This axis label is sans font (default)",
+       y = "This axis is also sans font (default)") +
+  theme(
+    plot.title = element_text(family = "serif", size = 30),
+    plot.subtitle = element_text(family = "mono", size = 25),
+    axis.title = element_text(family = "sans", size = 22),
+    axis.text.x = element_text(family = "serif", face = "bold", size = 18),
+    axis.text.y = element_text(family = "mono", face = "italic", size = 18)
+    )
+```
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                    setup                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#..........................load packages.........................
+library(tidyverse)
+
+#..........................import data...........................
+jobs <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-05/jobs_gender.csv")
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                wrangle data                              ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+jobs_clean <- jobs |>
+
+  # add cols (needed for dumbbell plot) ----
+  mutate(percent_male = 100 - percent_female, # % of females within each industry was already included
+       difference_earnings = total_earnings_male - total_earnings_female) |>  # diff in earnings between M & F
+
+  # rearrange columns ----
+  relocate(year, major_category, minor_category, occupation,
+           total_workers, workers_male, workers_female,
+           percent_male, percent_female,
+           total_earnings, total_earnings_male, total_earnings_female, difference_earnings,
+           wage_percent_of_male) |>
+
+  # drop rows with missing earning data ----
+  drop_na(total_earnings_male, total_earnings_female) |>
+
+  # make occupation a factor ----
+  mutate(occupation = as.factor(occupation)) |>
+
+# ---- this next step is for creating our dumbbell plots ----
+
+# classify jobs by percentage male or female ----
+  mutate(group_label = case_when(
+    percent_female >= 75 ~ "Occupations that are 75%+ female",
+    percent_female >= 45 & percent_female <= 55 ~ "Occupations that are 45-55% female",
+    percent_male >= 75 ~ "Occupations that are 75%+ male"
+  ))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              create subset df                            ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#....guarantee the same random samples each time we run code.....
+set.seed(0)
+
+#.........get 10 random jobs that are 75%+ female (2016).........
+f75 <- jobs_clean |>
+  filter(year == 2016, group_label == "Occupations that are 75%+ female") |>
+  slice_sample(n = 10)
+
+#..........get 10 random jobs that are 75%+ male (2016)..........
+m75 <- jobs_clean |>
+  filter(year == 2016, group_label == "Occupations that are 75%+ male") |>
+  slice_sample(n = 10)
+
+#........get 10 random jobs that are 45-55%+ female (2016).......
+f50 <- jobs_clean |>
+  filter(year == 2016, group_label == "Occupations that are 45-55% female") |>
+  slice_sample(n = 10)
+
+#.......combine dfs & relevel factors (for plotting order).......
+subset_jobs <- rbind(f75, m75, f50) |>
+  mutate(group_label = fct_relevel(group_label, 
+                                   "Occupations that are 75%+ female",
+                                   "Occupations that are 45-55% female", 
+                                   "Occupations that are 75%+ male"))
+
+```
+
+```{r}
+#Create a color palette
+earnings_pal <- c("males" = "#2d7787",
+                  "females" = "#fc6b4b",
+                  dark_text = "#0c1509",
+                  light_text = "#4E514D")
+
+monochromeR::view_palette(earnings_pal)
+```
+
+```{r}
+plot <- ggplot(subset_jobs) +
+  geom_segment(aes(x = total_earnings_female, xend = total_earnings_male,
+                 y = fct_reorder(occupation, total_earnings), yend = occupation)) +
+  geom_point(aes(x = total_earnings_male, y = occupation),
+             color = earnings_pal["males"], size = 3.25) +
+  geom_point(aes(x = total_earnings_female, y = occupation),
+             color = earnings_pal["females"], size = 3.25) +
+  facet_wrap(~group_label, nrow = 3, scales = "free_y") +
+  scale_x_continuous(labels = scales::label_dollar(scale = 0.001, suffix = "k"),
+                     breaks = c(25000, 50000, 75000, 100000, 125000))
+
+plot
+```
+
+```{r}
+plot +
+  labs(title = "Males earn more than females across most occupations",
+       subtitle = "Median earnings of full-time male vs. female workers by occupation in 2016",
+       caption = "Data Source: TidyTuesday (March 5, 2019)") +
+  theme_minimal() +
+  theme(
+    plot.title.position = "plot",
+    plot.title = element_text(family = "josefin",
+                              face = "bold",
+                              size = 25,
+                              color = earnings_pal["dark_text"]),
+    plot.subtitle = element_text(family = "sen",
+                                 size = 17,
+                                 color = earnings_pal["light_text"],
+                                 margin = margin(t = 0.5, r = 0, b = 1, l = 0, unit = "lines")),
+    plot.caption = element_text(family = "sen",
+                                face = "italic",
+                                color = earnings_pal["light_text"],
+                                margin = margin(t = 3, r = 0, b = 0, l = 0, unit = "lines")),
+    strip.text.x = element_text(family = "josefin",
+                                face = "bold",
+                                size = 12,
+                                hjust = 0),
+    panel.spacing.y = unit(x = 1, "lines"),
+    axis.text = element_text(family = "sen",
+                             color = earnings_pal["light_text"]),
+    axis.text.x = element_text(size = 10),
+    axis.title = element_blank()
+  )
+```
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                    setup                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#..........................load packages.........................
+library(tidyverse)
+library(showtext)
+
+#..........................import fonts..........................
+# `name` is the name of the font as it appears in Google Fonts
+# `family` is the user-specified id that you'll use to apply a font in your ggpplot
+font_add_google(name = "Josefin Sans", family = "josefin")
+font_add_google(name = "Sen", family = "sen")
+
+#................enable {showtext} for rendering.................
+showtext_auto()
+
+# ~ additional setup code omitted for brevity ~
+```
